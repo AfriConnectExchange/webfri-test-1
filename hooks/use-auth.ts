@@ -1,0 +1,1 @@
+// Client-side auth hook

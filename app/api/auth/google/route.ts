@@ -1,0 +1,1 @@
+// GET /api/auth/google route handler
