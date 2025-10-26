@@ -1,26 +1,39 @@
+/* Import Bricolage Grotesque from Google Fonts. Raleway is loaded via next/font/google for
+   better performance. Keep this import minimal and only request the styles you need. */
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&display=swap');
+
 @import "tailwindcss";
 
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --accent: #E11D48; /* brand accent color used across links and buttons */
+  --font-bricolage: 'Bricolage Grotesque', 'Raleway', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-plus-jakarta);
   --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  /* Use Bricolage if available, fall back to the Raleway variable injected by next/font/google,
+     then fall back to the existing plus-jakarta variable. */
+  font-family: var(--font-bricolage, var(--font-raleway), var(--font-sans));
+}
+
+/* Global link styling to use the brand accent color */
+a,
+.MuiLink-root {
+  color: var(--accent);
+}
+
+a:hover,
+.MuiLink-root:hover {
+  color: #C3143A;
+  text-decoration: underline;
 }

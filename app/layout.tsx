@@ -1,16 +1,28 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Raleway } from "next/font/google";
 import "./globals.css";
+import React from 'react'
+import ClientThemeProvider from '../components/ClientThemeProvider'
+import HeaderConditional from '../components/HeaderConditional'
+import { SnackbarProvider } from '../components/Ui/SnackbarProvider'
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plusJakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
+  variable: "--font-plus-jakarta",
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+// Use Next's google font loader for Raleway for better performance and
+// to avoid layout shift. We only request a narrow set of weights here —
+// add more only if you need them.
+const raleway = Raleway({
   subsets: ["latin"],
-});
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-raleway",
+  display: 'swap',
+})
+
+// Only using Plus Jakarta Sans as the app font to keep typography consistent
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -22,13 +34,19 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Using the brand accent color literal here because MUI's createTheme
+  // expects a concrete CSS color value (hex, rgb, etc.). Using a CSS
+  // variable like `var(--accent)` throws at runtime when creating the theme.
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+    <body className={`${plusJakarta.variable} ${raleway.variable} antialiased`}>
+        <ClientThemeProvider>
+          <HeaderConditional />
+          <SnackbarProvider>
+            {children}
+          </SnackbarProvider>
+        </ClientThemeProvider>
       </body>
     </html>
-  );
+  )
 }
