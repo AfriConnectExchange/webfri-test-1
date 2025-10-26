@@ -28,6 +28,7 @@ import MenuIcon from '@mui/icons-material/Menu'
 import { useTheme } from '@mui/material/styles'
 import useMediaQuery from '@mui/material/useMediaQuery'
 import Logo from './Logo'
+import { useSession } from '@/hooks/use-auth'
 
 type HeaderProps = {
   // optional: allow parent to control drawer open state
@@ -55,8 +56,8 @@ const Header: React.FC<HeaderProps> = ({ onOpen }) => {
     if (next && onOpen) onOpen()
   }
 
-  // TODO: wire to real auth state / context. For now false so header shows Sign in button.
-  const isSignedIn = false
+  const { data: session } = useSession()
+  const isSignedIn = !!session?.user
 
   // Dialog Paper styles: on small screens make the dialog sit in the header area (full-width, no radius)
   const dialogPaperSx = isSmall

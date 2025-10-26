@@ -1,4 +1,5 @@
-import { User, UserRole, UserStatus, VerificationStatus } from '@prisma/client'
+import { UserRole, UserStatus, VerificationStatus } from '@prisma/client'
+import { Session, User as AuthUser } from 'better-auth/types'
 
 export interface SessionUser {
   id: string
@@ -13,10 +14,6 @@ export interface SessionUser {
 }
 
 export interface DeviceInfo {
-  deviceId: string
-  userAgent: string
-  ip: string
-  lastLogin: Date
 }
 
 export interface SessionData {
@@ -73,11 +70,34 @@ export interface ResetPasswordRequest {
   confirmPassword: string
 }
 
+// Unified DeviceInfo used across the app. Combines fields from previous
+// definitions to avoid duplicate interface name collisions.
 export interface DeviceInfo {
-  deviceType?: string
+  // identifiers
+  deviceId?: string
   deviceName?: string
-  browser?: string
-  os?: string
+
+  // network / UA
+  ip?: string
   ipAddress?: string
   userAgent?: string
+
+  // device metadata
+  deviceType?: string
+  browser?: string
+  os?: string
+
+  // timestamps
+  lastLogin?: Date
+}
+
+// Extend Better Auth's types with our custom fields
+export interface ExtendedUser extends AuthUser {
+  phone?: string
+  fullName?: string
+  roles: string[]
+}
+
+export interface ExtendedSession extends Session {
+  user: ExtendedUser
 }

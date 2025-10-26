@@ -26,6 +26,7 @@ import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useSnackbar } from '../Ui/SnackbarProvider'
 import { useRouter } from 'next/navigation'
+import { authClient } from '@/hooks/use-auth'
 import PhoneInput, { isValidPhoneNumber } from 'react-phone-number-input'
 import 'react-phone-number-input/style.css'
 
@@ -66,18 +67,33 @@ const SignUp: React.FC = () => {
     return Object.keys(e).length === 0
   }
 
-  const handleSubmit = (ev?: React.FormEvent) => {
+  const handleSubmit = async (ev?: React.FormEvent) => {
     ev?.preventDefault()
     if (!validate()) return
-    // simulate async submission (replace with real API call)
+
     setLoading(true)
-    setTimeout(() => {
+    try {
+      const result = await authClient.signUp.email({
+        email: method === 'email' ? email : undefined,
+        password,
+        name: fullName,
+        callbackURL: '/auth/verify',
+      })
+
+      if (result.error) {
+        snackbar.show(result.error.message, 'error')
+        return
+      }
+
+      snackbar.show('Account created! Check your email for verification.', 'success')
+      router.push('/auth/verified-email')
+    } catch (error: unknown) {
+      console.error('Signup error', error)
+  const message = error instanceof Error ? error.message : 'Failed to create account'
+  snackbar.show(message, 'error')
+    } finally {
       setLoading(false)
-      console.log({ fullName, email, password, role, phone })
-      snackbar.show('Account created — check your email or phone for verification', 'info')
-      // redirect to verification page (stub)
-      router.push('/auth/verify')
-    }, 1200)
+    }
   }
 
   return (

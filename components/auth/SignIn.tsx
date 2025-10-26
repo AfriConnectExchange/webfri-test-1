@@ -10,6 +10,7 @@ import { AiOutlineEye, AiOutlineEyeInvisible } from 'react-icons/ai';
 import Logo from '../Logo';
 
 import { useRouter } from 'next/navigation'
+import { authClient } from '@/hooks/use-auth'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { useSnackbar } from '../Ui/SnackbarProvider'
@@ -22,6 +23,8 @@ const SignIn = () => {
   const [socialLoading, setSocialLoading] = React.useState<null | 'google' | 'facebook'>(null);
   const [method, setMethod] = React.useState<'email' | 'phone'>('email')
   const [phone, setPhone] = React.useState('')
+  const [email, setEmail] = React.useState('')
+  const [password, setPassword] = React.useState('')
   const router = useRouter()
   const snackbar = useSnackbar()
 
@@ -62,6 +65,8 @@ const SignIn = () => {
                   label="Email address"
                   variant="outlined"
                   size="small"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   sx={{
                     '& .MuiOutlinedInput-root': { height: '44px' },
                   }}
@@ -88,6 +93,8 @@ const SignIn = () => {
                 label="Password"
                 variant="outlined"
                 type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 size="small"
                 sx={{ '& .MuiOutlinedInput-root': { height: '44px' } }}
                 InputProps={{
@@ -111,20 +118,38 @@ const SignIn = () => {
                 variant="contained"
                 size="large"
                 disabled={loading}
-                onClick={() => {
+                onClick={async () => {
                   // basic validation for phone method
                   if (method === 'phone') {
                     if (!phone || !isValidPhoneNumber(phone)) {
                       snackbar.show('Please enter a valid phone number', 'warning')
                       return
                     }
+                    // phone sign-in not implemented here
+                    snackbar.show('Phone sign-in not implemented', 'warning')
+                    return
                   }
-                  setLoading(true);
-                  setTimeout(() => {
-                    setLoading(false);
-                    snackbar.show('Signed in successfully', 'success')
-                    router.push('/postauth')
-                  }, 900)
+
+                  if (!email || !password) {
+                    snackbar.show('Please enter email and password', 'warning')
+                    return
+                  }
+
+                  setLoading(true)
+                  try {
+                    const result = await authClient.signIn.email({ email, password })
+                    if (result.error) {
+                      snackbar.show(result.error.message, 'error')
+                    } else {
+                      snackbar.show('Signed in successfully', 'success')
+                      router.push('/postauth')
+                    }
+                  } catch (err) {
+                    console.error('Sign in error', err)
+                    snackbar.show('Sign in failed', 'error')
+                  } finally {
+                    setLoading(false)
+                  }
                 }}
                 startIcon={loading ? <CircularProgress size={18} color="inherit" /> : undefined}
                 sx={{ bgcolor: 'var(--accent)', height: '44px', borderRadius: '8px', textTransform: 'none', fontSize: '1rem', fontWeight: 500, boxShadow: 'none', '&:hover': { bgcolor: '#C3143A', boxShadow: 'none' } }}

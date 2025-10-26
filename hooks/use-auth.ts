@@ -1,6 +1,16 @@
+"use client"
+
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { SessionUser } from '@/types/auth'
+import { createAuthClient } from 'better-auth/react'
+
+// Create a client-side Better Auth instance and re-export useful hooks
+export const authClient = createAuthClient({
+  baseURL: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+})
+
+export const { useSession, signIn, signOut, signUp } = authClient
 
 interface AuthState {
   user: SessionUser | null
