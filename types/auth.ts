@@ -9,13 +9,25 @@ export interface SessionUser {
   status: UserStatus
   verificationStatus: VerificationStatus
   emailVerified: Date | null
-  phoneVerified: boolean
+  phoneVerified: boolean | null
+}
+
+export interface DeviceInfo {
+  deviceId: string
+  userAgent: string
+  ip: string
+  lastLogin: Date
 }
 
 export interface SessionData {
+  id: string
+  token: string
+  userId: string
   user: SessionUser
-  sessionId: string
+  deviceInfo: DeviceInfo
+  csrfToken: string
   expiresAt: Date
+  createdAt: Date
 }
 
 export interface SignUpEmailRequest {

@@ -1,14 +1,71 @@
 import { prisma } from '@/lib/prisma/client'
 import { generateToken } from './tokens'
-import { DeviceInfo } from '@/types/auth'
+import { DeviceInfo, SessionData, SessionUser } from '@/types/auth'
 import { generateDeviceId } from '@/lib/security/device-fingerprint'
 import { logger } from '@/lib/security/logger'
-import { SessionData, SessionUser } from '@/types/auth'
-import { cookies } from 'next/headers'
+import { getCookie, setCookie } from 'cookies-next'
+import { NextResponse } from 'next/server'
 
 const SESSION_COOKIE_NAME = 'africonnect_session'
-const SESSION_EXPIRY_HOURS = 24
-const REMEMBER_ME_DAYS = 30
+const SESSION_EXPIRY_HOURS = 24 // Default session length
+const EXTENDED_SESSION_DAYS = 30 // "Remember me" session length
+
+export async function getSession(sessionToken: string | null): Promise<SessionData | null> {
+  try {
+    if (!sessionToken) return null
+
+    // Find session in database
+    const session = await prisma.userSession.findUnique({
+      where: { sessionToken },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            fullName: true,
+            profilePictureUrl: true,
+            roles: true,
+            status: true,
+            verificationStatus: true,
+            emailVerified: true,
+            phoneVerified: true,
+          }
+        }
+      }
+    })
+
+    // If no session or expired, return null
+    if (!session || !session.isActive || session.expiresAt < new Date()) {
+      return null
+    }
+
+    // Update last activity
+    await prisma.userSession.update({
+      where: { id: session.id },
+      data: { lastActivityAt: new Date() },
+    })
+
+    // Map to SessionData type
+    return {
+      id: session.id,
+      token: session.sessionToken,
+      userId: session.userId,
+      user: session.user as SessionUser,
+      deviceInfo: {
+        deviceId: session.deviceId,
+        userAgent: session.userAgent || '',
+        ip: session.ipAddress || '',
+        lastLogin: session.lastLoginAt
+      },
+      csrfToken: session.csrfToken,
+      expiresAt: session.expiresAt,
+      createdAt: session.createdAt
+    }
+  } catch (error) {
+    logger.error('Error getting session:', error instanceof Error ? error.message : 'Unknown error')
+    return null
+  }
+}
 
 /**
  * Create a new session
@@ -17,22 +74,27 @@ export async function createSession(
   userId: string,
   deviceInfo: DeviceInfo,
   rememberMe: boolean = false
-): Promise<{ sessionToken: string; expiresAt: Date }> {
-  const sessionToken = generateToken(32)
-  const expiresAt = new Date(
-    Date.now() +
-      (rememberMe ? REMEMBER_ME_DAYS * 24 : SESSION_EXPIRY_HOURS) * 60 * 60 * 1000
-  )
-
+): Promise<SessionData> {
+  // Generate session token and device ID
+  const sessionToken = await generateToken(32)
+  const csrfToken = await generateToken(32)
   const deviceId = generateDeviceId(
     deviceInfo.userAgent || '',
     deviceInfo.ipAddress || ''
   )
+  
+  // Calculate expiry
+  const expiresAt = new Date(
+    Date.now() +
+      (rememberMe ? EXTENDED_SESSION_DAYS * 24 : SESSION_EXPIRY_HOURS) * 60 * 60 * 1000
+  )
 
   // Create session in database
-  await prisma.userSession.create({
+  const session = await prisma.userSession.create({
     data: {
       userId,
+      sessionToken,
+      csrfToken,
       deviceId,
       deviceType: deviceInfo.deviceType,
       deviceName: deviceInfo.deviceName,
@@ -40,36 +102,11 @@ export async function createSession(
       os: deviceInfo.os,
       ipAddress: deviceInfo.ipAddress,
       userAgent: deviceInfo.userAgent,
-      sessionToken,
       expiresAt,
       isActive: true,
-    },
-  })
-
-  // Update user's last login
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
       lastLoginAt: new Date(),
-      loginCount: { increment: 1 },
+      lastActivityAt: new Date(),
     },
-  })
-
-  logger.info('auth', `Session created for user ${userId}`, {
-    deviceId,
-    expiresAt,
-    rememberMe,
-  })
-
-  return { sessionToken, expiresAt }
-}
-
-/**
- * Get session by token
- */
-export async function getSession(sessionToken: string): Promise<SessionData | null> {
-  const session = await prisma.userSession.findUnique({
-    where: { sessionToken },
     include: {
       user: {
         select: {
@@ -82,31 +119,46 @@ export async function getSession(sessionToken: string): Promise<SessionData | nu
           verificationStatus: true,
           emailVerified: true,
           phoneVerified: true,
-        },
-      },
+        }
+      }
+    }
+  })
+
+  // Update user's last login
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      lastLoginAt: new Date(),
+      loginCount: { increment: 1 },
     },
   })
 
-  if (!session || !session.isActive) {
-    return null
-  }
+  // Set session cookie
+  setSessionCookie(sessionToken, expiresAt)
 
-  // Check if session has expired
-  if (new Date() > session.expiresAt) {
-    await deleteSession(sessionToken)
-    return null
-  }
-
-  // Update last activity
-  await prisma.userSession.update({
-    where: { id: session.id },
-    data: { lastActivityAt: new Date() },
+  // Log session creation
+  logger.info('auth', `Session created for user ${userId}`, {
+    sessionId: session.id,
+    deviceId: session.deviceId,
+    expiresAt: session.expiresAt,
+    rememberMe,
   })
 
+  // Map to SessionData type
   return {
+    id: session.id,
+    token: session.sessionToken,
+    userId: session.userId,
     user: session.user as SessionUser,
-    sessionId: session.id,
+    deviceInfo: {
+      deviceId: session.deviceId,
+      userAgent: session.userAgent || '',
+      ip: session.ipAddress || '',
+      lastLogin: session.lastLoginAt
+    },
+    csrfToken: session.csrfToken,
     expiresAt: session.expiresAt,
+    createdAt: session.createdAt
   }
 }
 
@@ -168,35 +220,39 @@ export async function refreshSession(
   return newExpiresAt
 }
 
+import { serialize } from 'cookie';
+
 /**
- * Set session cookie
+ * Set session cookie in response
  */
-export async function setSessionCookie(sessionToken: string, expiresAt: Date): Promise<void> {
-  const cookieStore = await cookies()
-  
-  cookieStore.set(SESSION_COOKIE_NAME, sessionToken, {
+export function setSessionCookie(sessionToken: string, expiresAt: Date): void {
+  setCookie(SESSION_COOKIE_NAME, sessionToken, {
+    path: '/',
+    expires: expiresAt,
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    expires: expiresAt,
-    path: '/',
+    sameSite: 'lax'
   })
 }
 
 /**
  * Get session cookie
  */
-export async function getSessionCookie(): Promise<string | undefined> {
-  const cookieStore = await cookies()
-  return cookieStore.get(SESSION_COOKIE_NAME)?.value
+export function getSessionCookie(): string | undefined {
+  const value = getCookie(SESSION_COOKIE_NAME)
+  return typeof value === 'string' ? value : undefined
 }
 
 /**
  * Delete session cookie
  */
-export async function deleteSessionCookie(): Promise<void> {
-  const cookieStore = await cookies()
-  cookieStore.delete(SESSION_COOKIE_NAME)
+export function deleteSessionCookie(): void {
+  setCookie(SESSION_COOKIE_NAME, '', {
+    path: '/',
+    expires: new Date(0),
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production'
+  })
 }
 
 /**

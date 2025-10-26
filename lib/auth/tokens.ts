@@ -1,11 +1,142 @@
 import crypto from 'crypto'
 import bcrypt from 'bcryptjs'
+import { prisma } from '@/lib/prisma/client'
+import { addHours, addDays } from 'date-fns'
 
 /**
  * Generate a secure random token
  */
 export function generateToken(length: number = 32): string {
   return crypto.randomBytes(length).toString('hex')
+}
+
+/**
+ * Generate an email verification token
+ */
+export async function generateVerificationToken(userId: string): Promise<string> {
+  const token = generateToken()
+  const hashedToken = await bcrypt.hash(token, 10)
+  
+  await prisma.verificationToken.create({
+    data: {
+      userId,
+      token: hashedToken,
+      expiresAt: addHours(new Date(), 24) // 24 hour expiry
+    }
+  })
+
+  return token
+}
+
+/**
+ * Verify an email verification token
+ */
+export async function verifyEmailToken(token: string): Promise<string | null> {
+  const hashedTokens = await prisma.verificationToken.findMany({
+    where: {
+      expiresAt: { gt: new Date() }
+    }
+  })
+
+  for (const record of hashedTokens) {
+    const isValid = await bcrypt.compare(token, record.token)
+    if (isValid) {
+      await prisma.verificationToken.delete({
+        where: { id: record.id }
+      })
+      return record.userId
+    }
+  }
+
+  return null
+}
+
+/**
+ * Generate a password reset token
+ */
+export async function generatePasswordResetToken(userId: string): Promise<string> {
+  const token = generateToken()
+  const hashedToken = await bcrypt.hash(token, 10)
+
+  await prisma.passwordResetToken.create({
+    data: {
+      userId,
+      token: hashedToken,
+      expiresAt: addHours(new Date(), 1) // 1 hour expiry
+    }
+  })
+
+  return token
+}
+
+/**
+ * Verify a password reset token
+ */
+export async function verifyPasswordResetToken(token: string): Promise<string | null> {
+  const hashedTokens = await prisma.passwordResetToken.findMany({
+    where: {
+      expiresAt: { gt: new Date() }
+    }
+  })
+
+  for (const record of hashedTokens) {
+    const isValid = await bcrypt.compare(token, record.token)
+    if (isValid) {
+      await prisma.passwordResetToken.delete({
+        where: { id: record.id }
+      })
+      return record.userId
+    }
+  }
+
+  return null
+}
+
+/**
+ * Generate a CSRF token
+ */
+export function generateCsrfToken(): string {
+  return generateToken(32)
+}
+
+/**
+ * Generate an API key
+ */
+export async function generateApiKey(userId: string, name: string): Promise<string> {
+  const key = `ak_${generateToken(32)}`
+  const hashedKey = await bcrypt.hash(key, 10)
+
+  await prisma.apiKey.create({
+    data: {
+      userId,
+      name,
+      key: hashedKey,
+      expiresAt: addDays(new Date(), 365) // 1 year expiry
+    }
+  })
+
+  return key
+}
+
+/**
+ * Verify an API key
+ */
+export async function verifyApiKey(key: string): Promise<string | null> {
+  const apiKeys = await prisma.apiKey.findMany({
+    where: {
+      expiresAt: { gt: new Date() },
+      revoked: false
+    }
+  })
+
+  for (const apiKey of apiKeys) {
+    const isValid = await bcrypt.compare(key, apiKey.key)
+    if (isValid) {
+      return apiKey.userId
+    }
+  }
+
+  return null
 }
 
 /**
@@ -33,9 +164,9 @@ export async function verifyToken(
 }
 
 /**
- * Generate a verification token and its hash
+ * Generate a token and its hash for verification purposes
  */
-export async function generateVerificationToken(): Promise<{
+export async function generateTokenWithHash(): Promise<{
   token: string
   hash: string
 }> {

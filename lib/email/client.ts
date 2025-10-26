@@ -1,13 +1,121 @@
+import nodemailer, { TransportOptions } from 'nodemailer'
+import { render } from '@react-email/render'
 import { prisma } from '@/lib/prisma/client'
+import { ReactElement } from 'react'
 
-type LogLevel = 'info' | 'warning' | 'error'
+// Email configuration interface
+interface EmailConfig {
+  host: string | undefined
+  port: number
+  auth: {
+    user: string | undefined
+    pass: string | undefined
+  }
+  from: string | undefined
+}
 
-interface LogData {
-  component: string
-  message: string
-  level?: LogLevel
-  userId?: string
-  sessionId?: string
+// Email options interface
+interface EmailOptions {
+  to: string
+  subject: string
+  component: ReactElement
+  attachments?: Array<{
+    filename: string
+    content: string | Buffer
+    contentType?: string
+  }>
+}
+}
+
+// Email configuration
+const EMAIL_CONFIG = {
+  host: process.env.EMAIL_HOST,
+  port: Number(process.env.EMAIL_PORT),
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+  from: process.env.EMAIL_FROM,
+}
+
+// Create reusable transporter
+const transporter = nodemailer.createTransport({
+  host: EMAIL_CONFIG.host,
+  port: EMAIL_CONFIG.port,
+  secure: EMAIL_CONFIG.port === 465,
+  auth: EMAIL_CONFIG.auth,
+})
+
+// Verify connection configuration
+transporter
+  .verify()
+  .then(() => {
+    logger.info('SMTP connection established successfully')
+  })
+  .catch((error) => {
+    logger.error('SMTP connection error:', error)
+  })
+
+interface EmailOptions {
+  to: string
+  subject: string
+  component: React.ReactElement
+  attachments?: nodemailer.Attachment[]
+}
+
+/**
+ * Send an email using nodemailer with React Email templates
+ */
+export async function sendEmail({
+  to,
+  subject,
+  component,
+  attachments,
+}: EmailOptions): Promise<boolean> {
+  try {
+    // Render React component to HTML
+    const html = render(component)
+
+    // Send mail
+    await transporter.sendMail({
+      from: EMAIL_CONFIG.from,
+      to,
+      subject,
+      html,
+      attachments,
+    })
+
+    // Log success
+    logger.info('Email sent successfully', {
+      to,
+      subject,
+    })
+
+    return true
+  } catch (error) {
+    // Log error
+    logger.error('Failed to send email', {
+      error: error as Error,
+      to,
+      subject,
+    })
+
+    return false
+  }
+}
+
+/**
+ * Verify SMTP configuration is working
+ */
+export async function verifyEmailConfig(): Promise<boolean> {
+  try {
+    await transporter.verify()
+    return true
+  } catch (error) {
+    logger.error('Email configuration error:', error as Error)
+    return false
+  }
+}
   metadata?: Record<string, any>
   errorCode?: string
   stackTrace?: string

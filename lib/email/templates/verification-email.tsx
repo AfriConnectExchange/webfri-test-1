@@ -14,14 +14,134 @@ import {
 import * as React from 'react'
 
 interface VerificationEmailProps {
-  userName: string
-  verificationLink: string
+  username: string
+  verificationUrl: string
 }
 
-export default function VerificationEmail({
-  userName,
-  verificationLink,
-}: VerificationEmailProps) {
+export const VerificationEmail = ({
+  username,
+  verificationUrl,
+}: VerificationEmailProps) => (
+  <Html>
+    <Head />
+    <Preview>Verify your email address for AfriConnect Exchange</Preview>
+    <Body style={main}>
+      <Container style={container}>
+        <Img
+          src="https://africonnect.com/logo.png"
+          width="150"
+          height="37"
+          alt="AfriConnect"
+          style={logo}
+        />
+        <Heading style={heading}>Verify your email address</Heading>
+        <Text style={paragraph}>Hi {username},</Text>
+        <Text style={paragraph}>
+          Thanks for signing up for AfriConnect Exchange. To complete your registration,
+          please verify your email address by clicking the button below:
+        </Text>
+        <Section style={buttonContainer}>
+          <Button pX={20} pY={12} style={button} href={verificationUrl}>
+            Verify Email Address
+          </Button>
+        </Section>
+        <Text style={paragraph}>
+          This link will expire in 24 hours. If you did not create an account,
+          you can safely ignore this email.
+        </Text>
+        <Text style={paragraph}>
+          If the button above does not work, you can also copy and paste this URL
+          into your browser:
+        </Text>
+        <Text style={url}>{verificationUrl}</Text>
+        <Text style={footer}>
+          Best regards,
+          <br />
+          The AfriConnect Exchange Team
+        </Text>
+      </Container>
+    </Body>
+  </Html>
+)
+
+const main = {
+  backgroundColor: '#ffffff',
+  fontFamily:
+    '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif',
+}
+
+const container = {
+  margin: '0 auto',
+  padding: '20px 0 48px',
+  maxWidth: '560px',
+}
+
+const logo = {
+  margin: '0 auto',
+  marginBottom: '24px',
+}
+
+const heading = {
+  fontSize: '24px',
+  letterSpacing: '-0.5px',
+  lineHeight: '1.3',
+  fontWeight: '400',
+  color: '#484848',
+  padding: '17px 0 0',
+}
+
+const paragraph = {
+  margin: '0 0 15px',
+  fontSize: '15px',
+  lineHeight: '1.4',
+  color: '#3c4149',
+}
+
+const buttonContainer = {
+  padding: '27px 0 27px',
+}
+
+const button = {
+  backgroundColor: '#5e6ad2',
+  borderRadius: '3px',
+  fontWeight: '600',
+  color: '#fff',
+  fontSize: '15px',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+  display: 'block',
+}
+
+const url = {
+  margin: '0 0 15px',
+  fontSize: '14px',
+  lineHeight: '1.4',
+  color: '#3c4149',
+  wordBreak: 'break-all' as const,
+}
+
+const footer = {
+  fontSize: '13px',
+  lineHeight: '1.4',
+  color: '#9ca299',
+  marginTop: '20px',
+  borderTop: '1px solid #e9ebeb',
+  paddingTop: '20px',
+}
+  Section,
+  Text,
+} from '@react-email/components'
+import * as React from 'react'
+
+interface VerificationEmailProps {
+  username: string
+  verificationUrl: string
+}
+
+export const VerificationEmail = ({
+  username,
+  verificationUrl,
+}: VerificationEmailProps) => (
   return (
     <Html>
       <Head />
@@ -34,7 +154,7 @@ export default function VerificationEmail({
           
           <Heading style={h2}>Verify your email address</Heading>
           
-          <Text style={text}>Hello {userName},</Text>
+          <Text style={text}>Hi {username},</Text>
           
           <Text style={text}>
             Thank you for signing up for AfriConnect Exchange! To complete your registration
@@ -43,7 +163,7 @@ export default function VerificationEmail({
           </Text>
 
           <Section style={buttonContainer}>
-            <Button style={button} href={verificationLink}>
+            <Button style={button} href={verificationUrl}>
               Verify Email Address
             </Button>
           </Section>
@@ -52,8 +172,8 @@ export default function VerificationEmail({
             Or copy and paste this link into your browser:
           </Text>
           
-          <Link href={verificationLink} style={link}>
-            {verificationLink}
+          <Link href={verificationUrl} style={link}>
+            {verificationUrl}
           </Link>
 
           <Text style={text}>

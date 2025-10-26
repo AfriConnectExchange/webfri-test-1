@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma/client'
 import { hashPassword } from '@/lib/auth/password'
-import { generateVerificationToken } from '@/lib/auth/tokens'
+import { generateTokenWithHash } from '@/lib/auth/tokens'
 import { validateSchema, signUpEmailSchema, signUpPhoneSchema } from '@/lib/utils/validation'
 import { successResponse, errorResponse, validationErrorResponse } from '@/lib/utils/response'
 import { ValidationError, AuthError } from '@/lib/utils/errors'
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       )
     } else {
       // Send verification email
-      const { token, hash } = await generateVerificationToken()
+      const { token, hash } = await generateTokenWithHash()
       
       // Store verification token
       await prisma.verificationToken.create({

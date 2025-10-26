@@ -1,6 +1,6 @@
 import crypto from 'crypto'
 import { headers } from 'next/headers'
-import UAParser from 'ua-parser-js'
+import { UAParser } from 'ua-parser-js'
 import { DeviceInfo } from '@/types/auth'
 
 /**

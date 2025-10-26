@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma/client'
-import { generateVerificationToken } from '@/lib/auth/tokens'
+import { generateTokenWithHash } from '@/lib/auth/tokens'
 import { validateSchema, forgotPasswordSchema } from '@/lib/utils/validation'
 import { successResponse, errorResponse, validationErrorResponse } from '@/lib/utils/response'
 import { NotFoundError, RateLimitError } from '@/lib/utils/errors'
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
     })
 
     // Generate new token
-    const { token, hash } = await generateVerificationToken()
+    const { token, hash } = await generateTokenWithHash()
 
     await prisma.verificationToken.create({
       data: {
